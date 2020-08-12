@@ -56,41 +56,36 @@
 #include <gazebo/common/common.hh>
 #include <ignition/math/Vector3.hh>
 
-namespace gazebo
-{
-  class GazeboGroundNodePlugin : public ModelPlugin
-  {
+namespace gazebo {
+  class GazeboGroundNodePlugin : public ModelPlugin {
 
-    public: void getSdfParams(sdf::ElementPtr sdf)
-    {
+    public: void getSdfParams(sdf::ElementPtr sdf) {
+      this->namespace_.clear();
+      if (sdf->HasElement("robotNamespace")) {
+        this->namespace_ = sdf->GetElement("robotNamespace")->Get<std::string>();
+      } else {
+        gzerr << "[gazebo_ground_node_plugin] Please specify a robotNamespace.\n";
+      }
 
-  this->namespace_.clear();
-  if (sdf->HasElement("robotNamespace")) {
-    this->namespace_ = sdf->GetElement("robotNamespace")->Get<std::string>();
-  } else {
-    gzerr << "[gazebo_ground_node_plugin] Please specify a robotNamespace.\n";
-  }
-
-  if (sdf->HasElement("nodeID")) {
-    this->node_id_ = sdf->GetElement("nodeID")->Get<unsigned int>();
-  } else {
-    gzerr << "[gazebo_ground_node_plugin] Please specify a node id.\n";
-  }
-}
-    public: void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf)
-    {
+      if (sdf->HasElement("nodeID")) {
+        this->node_id_ = sdf->GetElement("nodeID")->Get<unsigned int>();
+      } else {
+        gzerr << "[gazebo_ground_node_plugin] Please specify a node id.\n";
+      }
+    }
+    public: void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf) {
 	    getSdfParams(_sdf);
       // Store the pointer to the model
       this->model = _parent;
       this->world_ = this->model->GetWorld();
 
       #if GAZEBO_MAJOR_VERSION >= 9
-  this->last_time_ = this->world_->SimTime();
-  this->last_pub_time_ = this->world_->SimTime();
-#else
-  this->last_time_ = this->world_->GetSimTime();
-  this->last_pub_time_ = this->world_->GetSimTime();
-#endif
+        this->last_time_ = this->world_->SimTime();
+        this->last_pub_time_ = this->world_->SimTime();
+      #else
+        this->last_time_ = this->world_->GetSimTime();
+        this->last_pub_time_ = this->world_->GetSimTime();
+      #endif
 
       // Listen to the update event. This event is broadcast every
       // simulation iteration.
@@ -101,52 +96,51 @@ namespace gazebo
     }
 
     // Called by the world update start event
-    public: void OnUpdate()
-    {
+    public: void OnUpdate() {
       // Apply a small linear velocity to the model.
       //this->model->SetLinearVel(ignition::math::Vector3d(.3, 0, 0));
 
       #if GAZEBO_MAJOR_VERSION >= 9
-  common::Time current_time = this->world_->SimTime();
-#else
-  common::Time current_time = this->world_->GetSimTime();
-#endif
-  double dt = (current_time - this->last_pub_time_).Double();
-  double publish_rate = 5.0;
+        common::Time current_time = this->world_->SimTime();
+      #else
+        common::Time current_time = this->world_->GetSimTime();
+      #endif
+      double dt = (current_time - this->last_pub_time_).Double();
+      double publish_rate = 5.0;
 
-  if (dt > publish_rate) {
-    if (this->current_node == 3) {
-      this->current_node = 1;
-    } else {
-      this->current_node += 1;
-    }
-    if (this->current_node == this->node_id_) {
+      if (dt > publish_rate) {
+        if (this->current_node == 3 && this->is_validated_) {
+          this->current_node = 1;
+        } else {
+          if (this->is_validated_) {
+            this->current_node += 1;
+          }
+        }
+        if (this->current_node == this->node_id_) {
 
-      std::string message;
+          std::string message = "message";
+          std:: cout << "Interruption message is set to True" << std::endl;
+          std:: cout << "Message is received: " << "This is the message received from node " << this->node_id_ << std::endl;
+          std:: cout << "Interruption message is set to False" << std::endl;
+          std:: cout << "Message is Validating..." << std::endl;
+          this->is_validated_ = randomBool();
+          if (this->is_validated_) {
+            std:: cout << "Validation Successful..." << std::endl;
+            std:: cout << "Drone is moving to next node" << std::endl;
+          } else {
+            std:: cout << "Validation Failed..." << std::endl;
+          }
 
-      for (int i = 0; i < 16; i++) {
-        int randomNumber = rand() % 2;
-        double noise = this->standard_normal_distribution_(this->random_generator_);
-        float bitValue = randomNumber - noise;
+        }
 
-      //set the message to log
-      if (i == 0) {
-        message = "[" + std::to_string(bitValue) + ", ";
+        this->last_pub_time_ = current_time;
       }
-      else if (i == 15) {
-        message = message + std::to_string(bitValue) + "]";
-      }
-      else {
-        message = message + std::to_string(bitValue) + ", ";
-      }
-    }
-      std:: cout << "Selected node is: " << this->node_id_ << std::endl;
-      std:: cout << "Published message is : " << message << std::endl;
+
     }
 
-	  this->last_pub_time_ = current_time;
-  }
-
+    private: bool randomBool() {
+      static auto gen = std::bind(std::uniform_int_distribution<>(0,1),std::default_random_engine());
+      return gen();
     }
 
     // Pointer to the model
@@ -171,10 +165,10 @@ namespace gazebo
 
     private: std::default_random_engine random_generator_;
 
-
+    private: bool is_validated_ = true;
 
   };
-
   // Register this plugin with the simulator
   GZ_REGISTER_MODEL_PLUGIN(GazeboGroundNodePlugin)
 }
+
